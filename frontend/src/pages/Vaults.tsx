@@ -6,14 +6,12 @@ import {
     Filter,
     ArrowUpRight,
     Wallet,
-    TrendingUp,
     Shield,
-    Zap,
     Plus
 } from 'lucide-react';
 import { LineShadowText } from '../components/ui/line-shadow-text';
 import { ShimmerButton } from '../components/ui/shimmer-button';
-import { useAccount } from 'wagmi';
+
 
 // Mock data (replace with API call later)
 const MOCK_VAULTS = [
@@ -50,7 +48,6 @@ const MOCK_VAULTS = [
 ];
 
 export default function Vaults() {
-    const { isConnected } = useAccount();
     const [searchTerm, setSearchTerm] = useState('');
     const [filterStrategy, setFilterStrategy] = useState('all');
     const [filteredVaults, setFilteredVaults] = useState(MOCK_VAULTS);
@@ -141,8 +138,8 @@ export default function Vaults() {
                                             <div className="font-bold text-lg">{vault.pair}</div>
                                             <div className="flex items-center gap-2 text-sm text-muted-foreground">
                                                 <span className={`px-2 py-0.5 rounded text-xs border ${vault.strategy === 'aggressive' ? 'border-red-500/30 text-red-500' :
-                                                        vault.strategy === 'conservative' ? 'border-blue-500/30 text-blue-500' :
-                                                            'border-orange-500/30 text-orange-500'
+                                                    vault.strategy === 'conservative' ? 'border-blue-500/30 text-blue-500' :
+                                                        'border-orange-500/30 text-orange-500'
                                                     }`}>
                                                     {vault.strategy.toUpperCase()}
                                                 </span>

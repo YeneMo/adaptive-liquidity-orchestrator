@@ -56,15 +56,22 @@ export default function Dashboard() {
 
     const fetchVaults = async () => {
         try {
+            // If API_BASE_URL is localhost in production (Vercel), skip fetch to avoid errors
+            if (window.location.hostname !== 'localhost' && API_BASE_URL.includes('localhost')) {
+                throw new Error('Skipping localhost API in production');
+            }
+
             const response = await fetch(`${API_BASE_URL}/api/v1/vaults${address ? `?owner=${address}` : ''}`);
             if (response.ok) {
                 const data = await response.json();
                 setVaults(data);
+                return;
             }
         } catch (error) {
-            console.error('Failed to fetch vaults:', error);
-            // Use mock data for demo
-            setVaults([{
+            console.log('Using mock data for demo (backend not connected)');
+        } finally {
+            // Always set mock data if no real data (demo mode)
+            setVaults((prev) => prev.length > 0 ? prev : [{
                 vaultId: 1,
                 owner: address || '0x1234...5678',
                 tokenA: '0x4200000000000000000000000000000000000006',
@@ -75,7 +82,6 @@ export default function Dashboard() {
                 lastRebalance: Math.floor(Date.now() / 1000) - 3600,
                 isActive: true,
             }]);
-        } finally {
             setLoading(false);
         }
     };

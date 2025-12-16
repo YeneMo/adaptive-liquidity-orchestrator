@@ -1,12 +1,9 @@
-import { motion } from 'framer-motion';
 import {
     Brain,
     Activity,
     GitBranch,
     History,
     CheckCircle2,
-    AlertTriangle,
-    Play,
     LineChart
 } from 'lucide-react';
 import { LineShadowText } from '../components/ui/line-shadow-text';

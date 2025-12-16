@@ -43,7 +43,7 @@ export function HeroBackground() {
                             <feComponentTransfer in="monoNoise" result="alphaAdjustedNoise">
                                 <feFuncA type="discrete" tableValues="0.03 0.06 0.09 0.12" />
                             </feComponentTransfer>
-                            <feComposite in="blur" in2="alphaAdjustedNoise" operator="multiply" result="noisyBlur" />
+                            <feBlend in="blur" in2="alphaAdjustedNoise" mode="multiply" result="noisyBlur" />
                             <feMerge>
                                 <feMergeNode in="noisyBlur" />
                             </feMerge>
@@ -91,7 +91,7 @@ export function HeroBackground() {
                             <feComponentTransfer in="monoNoise" result="alphaAdjustedNoise">
                                 <feFuncA type="discrete" tableValues="0.05 0.1 0.15 0.2" />
                             </feComponentTransfer>
-                            <feComposite in="blur" in2="alphaAdjustedNoise" operator="multiply" result="noisyBlur" />
+                            <feBlend in="blur" in2="alphaAdjustedNoise" mode="multiply" result="noisyBlur" />
                             <feMerge>
                                 <feMergeNode in="noisyBlur" />
                             </feMerge>
