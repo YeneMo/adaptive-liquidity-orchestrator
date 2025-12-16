@@ -11,7 +11,8 @@ import {
 } from 'lucide-react';
 import { ShimmerButton } from '../components/ui/shimmer-button';
 import { LineShadowText } from '../components/ui/line-shadow-text';
-import { useAccount, useWriteContract } from 'wagmi';
+import { useAccount, useWriteContract, useSwitchChain } from 'wagmi';
+import { useConnectModal } from '@rainbow-me/rainbowkit';
 import { SiBinance, SiTether, SiEthereum } from 'react-icons/si';
 import { BsCoin } from 'react-icons/bs';
 import { VAULT_MANAGER_ABI, VAULT_MANAGER_ADDRESS } from '../config/contracts';
@@ -58,13 +59,21 @@ const strategies = [
 
 export default function VaultCreate() {
     const navigate = useNavigate();
-    const { isConnected } = useAccount();
+    const { isConnected, chain } = useAccount();
+    const { openConnectModal } = useConnectModal();
+    const { switchChainAsync } = useSwitchChain();
+
+    // Config Steps
     const [step, setStep] = useState(1);
     const [tokenA, setTokenA] = useState('');
     const [tokenB, setTokenB] = useState('');
     const [strategy, setStrategy] = useState('moderate');
 
+    // Creation State
     const [isCreating, setIsCreating] = useState(false);
+    const [creationSuccess, setCreationSuccess] = useState(false);
+    const [txHash, setTxHash] = useState('');
+
     const { writeContractAsync } = useWriteContract();
 
     // Strategy Parameters Map
@@ -80,16 +89,42 @@ export default function VaultCreate() {
         }
     };
 
-    const handleCreate = async () => {
+    const handleCreateClick = async () => {
+        // Case A: Wallet NOT connected
+        if (!isConnected) {
+            if (openConnectModal) {
+                openConnectModal();
+            } else {
+                alert("Please connect your wallet using the button in the navbar.");
+            }
+            return;
+        }
+
+        // Case B: Wallet connected BUT wrong network
+        const TARGET_CHAIN_ID = 5611; // opBNB Testnet
+        if (chain?.id !== TARGET_CHAIN_ID) {
+            try {
+                await switchChainAsync({ chainId: TARGET_CHAIN_ID });
+            } catch (error) {
+                console.error("Failed to switch network:", error);
+                alert("Please switch to opBNB Testnet to create a vault.");
+                return;
+            }
+            // Logic continues on next click or if switch resolves quickly, 
+            // but usually switchChain is enough to trigger re-render in correct state.
+            return;
+        }
+
+        // Case C: Wallet connected AND correct network -> Create
+        handleCreateTransaction();
+    };
+
+    const handleCreateTransaction = async () => {
         if (!tokenA || !tokenB) return;
 
         setIsCreating(true);
         try {
-            // Import dynamically to avoid circular dependencies if any, or just standard import
-            // For now assuming implicit global or standard import availability
-
             const params = getStrategyParams(strategy);
-
             console.log('Creating vault with:', { tokenA, tokenB, params });
 
             const hash = await writeContractAsync({
@@ -104,20 +139,79 @@ export default function VaultCreate() {
             });
 
             console.log('Transaction sent:', hash);
-            // In a real app we would wait for receipt here using useWaitForTransactionReceipt
-            // But for detailed feedback we often separate the waiting logic.
+            setTxHash(hash);
+            setCreationSuccess(true);
 
-            alert(`Transaction sent! Hash: ${hash}`);
-            navigate('/dashboard');
         } catch (error) {
             console.error('Failed to create vault:', error);
-            alert('Failed to create vault. See console for details.');
+            // Case D (Error): Tx reverted or rejected
+            alert('Vault creation failed. Please check the console or try again.');
         } finally {
             setIsCreating(false);
         }
     };
 
     const getTokenByAddress = (addr: string) => tokens.find(t => t.address === addr);
+
+    // Render Success Modal
+    if (creationSuccess) {
+        return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+                <motion.div
+                    initial={{ scale: 0.9, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="card max-w-lg w-full p-8 text-center"
+                >
+                    <div className="w-20 h-20 bg-green-500/10 rounded-full flex items-center justify-center mx-auto mb-6">
+                        <Check className="w-10 h-10 text-green-500" />
+                    </div>
+                    <h2 className="text-3xl font-bold mb-2">Vault Created! 🎉</h2>
+                    <p className="text-muted-foreground mb-6">
+                        Your AI-orchestrated vault is now live on opBNB Testnet.
+                    </p>
+
+                    <div className="p-4 bg-muted/30 rounded-xl mb-6 text-left">
+                        <div className="text-sm text-muted-foreground mb-1">Transaction Hash</div>
+                        <a
+                            href={`https://opbnb-testnet.bscscan.com/tx/${txHash}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline font-mono break-all"
+                        >
+                            {txHash}
+                        </a>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-orange-500/10 border border-orange-500/30 mb-8 text-left flex gap-3">
+                        <div className="p-2 bg-orange-500/20 rounded-lg h-fit">
+                            <Zap className="w-5 h-5 text-orange-500" />
+                        </div>
+                        <div>
+                            <h4 className="font-bold text-orange-500 mb-1">Action Required</h4>
+                            <p className="text-sm text-muted-foreground">
+                                Your vault has <strong>no liquidity</strong> yet. Deposit tokens now to verify the AI orchestration engine.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid gap-3">
+                        <ShimmerButton
+                            onClick={() => navigate('/dashboard')} // TODO: Go to specific vault detail
+                            className="w-full justify-center py-3 font-bold text-lg"
+                        >
+                            👉 Deposit Tokens
+                        </ShimmerButton>
+                        <button
+                            onClick={() => navigate('/dashboard')}
+                            className="py-3 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            Back to Dashboard
+                        </button>
+                    </div>
+                </motion.div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen px-4 py-8">
@@ -363,18 +457,14 @@ export default function VaultCreate() {
                             </div>
 
                             <ShimmerButton
-                                onClick={handleCreate}
-                                disabled={!isConnected || isCreating}
-                                className="w-full flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed bg-orange-500 hover:bg-orange-600 shadow-xl py-3"
+                                onClick={handleCreateClick}
+                                disabled={isCreating}
+                                className="w-full flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 shadow-xl py-3"
                             >
-                                {isConnected ? (
-                                    <>
-                                        {isCreating ? 'Creating Vault...' : 'Create Vault'}
-                                        {!isCreating && <Zap className="w-5 h-5" />}
-                                    </>
-                                ) : (
-                                    'Connect Wallet to Create'
-                                )}
+                                {!isConnected ? "Connect Wallet to Create"
+                                    : chain?.id !== 5611 ? "Switch to opBNB"
+                                        : isCreating ? "Creating Vault..."
+                                            : "Create Vault"}
                             </ShimmerButton>
                         </div>
                     )}
